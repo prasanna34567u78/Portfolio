@@ -13,7 +13,7 @@ export default function Hero() {
     >
       {/* Background grid pattern */}
       <div
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
         style={{
           backgroundImage:
             'linear-gradient(rgba(99,102,241,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.5) 1px, transparent 1px)',
@@ -34,13 +34,13 @@ export default function Hero() {
           {/* Text column */}
           <div className="order-2 lg:order-1 animate-fade-in-up">
             <p className="section-label">Hello, I'm</p>
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-tight mb-4">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-tight mb-4 tracking-tight">
               <span className="text-gradient">{SITE.name}</span>
             </h1>
-            <p className="text-xl sm:text-2xl font-semibold text-slate-200 mb-2">
+            <p className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
               {SITE.headline}
             </p>
-            <p className="text-base text-slate-400 mb-8 max-w-lg leading-relaxed">
+            <p className="text-base text-slate-600 dark:text-slate-400 mb-8 max-w-lg leading-relaxed">
               {SITE.subheadline}
             </p>
 
@@ -63,7 +63,7 @@ export default function Hero() {
                 href={SITE.linkedIn}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-slate-400 hover:text-indigo-400 transition-colors"
+                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
                 aria-label="LinkedIn profile"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -74,7 +74,7 @@ export default function Hero() {
                 href={SITE.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-slate-400 hover:text-indigo-400 transition-colors"
+                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
                 aria-label="GitHub profile"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -83,15 +83,15 @@ export default function Hero() {
               </a>
               <a
                 href={`mailto:${SITE.email}`}
-                className="text-slate-400 hover:text-indigo-400 transition-colors"
+                className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
                 aria-label="Send email"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </a>
-              <span className="text-slate-600">·</span>
-              <span className="text-sm text-slate-500">{SITE.location}</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
+              <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">{SITE.location}</span>
             </div>
           </div>
 
@@ -99,7 +99,7 @@ export default function Hero() {
           <div className="order-1 lg:order-2 flex justify-center items-center">
             <Suspense
               fallback={
-                <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center animate-pulse">
+                <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center animate-pulse">
                   <span className="text-slate-500 text-sm">Loading avatar…</span>
                 </div>
               }
@@ -110,9 +110,9 @@ export default function Hero() {
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-slate-500" aria-hidden="true">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500" aria-hidden="true">
           <span className="text-xs tracking-widest uppercase">Scroll</span>
-          <div className="w-px h-10 bg-gradient-to-b from-slate-500 to-transparent" />
+          <div className="w-px h-10 bg-gradient-to-b from-slate-400 dark:from-slate-500 to-transparent" />
         </div>
       </div>
     </section>

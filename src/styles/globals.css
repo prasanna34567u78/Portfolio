@@ -26,51 +26,36 @@
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
-  }
-
-  body.light {
-    @apply bg-white text-slate-900;
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased transition-colors duration-200;
   }
 }
 
 @layer components {
   .section-label {
-    @apply text-xs font-semibold tracking-widest uppercase text-indigo-400 mb-2;
+    @apply text-xs font-semibold tracking-widest uppercase text-indigo-600 dark:text-indigo-400 mb-2;
   }
 
   .section-heading {
-    @apply text-3xl sm:text-4xl font-bold text-white mb-4;
-  }
-
-  body.light .section-heading {
-    @apply text-slate-900;
+    @apply text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4;
   }
 
   .btn-primary {
-    @apply inline-flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold
-           px-5 py-2.5 rounded-lg transition-colors duration-200 focus-visible:outline-none
-           focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2
-           focus-visible:ring-offset-slate-950;
+    @apply inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600
+           text-white font-semibold px-5 py-2.5 rounded-lg transition-colors duration-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2
+           focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 shadow-sm;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center gap-2 border border-slate-700 hover:border-indigo-500
-           text-slate-300 hover:text-indigo-400 font-medium px-5 py-2.5 rounded-lg
+    @apply inline-flex items-center gap-2 border border-slate-300 dark:border-slate-700
+           hover:border-indigo-500 dark:hover:border-indigo-400 text-slate-700 dark:text-slate-300
+           hover:text-indigo-600 dark:hover:text-indigo-400 font-medium px-5 py-2.5 rounded-lg
            transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2
-           focus-visible:ring-indigo-400;
-  }
-
-  body.light .btn-ghost {
-    @apply border-slate-300 hover:border-indigo-500 text-slate-700 hover:text-indigo-600;
+           focus-visible:ring-indigo-400 bg-white/50 dark:bg-slate-900/50;
   }
 
   .card {
-    @apply bg-slate-900 border border-slate-800 rounded-2xl p-6;
-  }
-
-  body.light .card {
-    @apply bg-white border-slate-200 shadow-sm;
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-none transition-colors duration-200;
   }
 
   /* Scroll-reveal: items start hidden, JS adds .revealed */
@@ -95,6 +80,13 @@
 
 @layer utilities {
   .text-gradient {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dark .text-gradient {
     background: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #a78bfa 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

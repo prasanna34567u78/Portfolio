@@ -150,6 +150,3 @@ export default function AvatarScene({ speaking, currentViseme }: AvatarSceneProp
     </div>
   )
 }
-
-// Preload hint for Draco decoder (drei handles this automatically)
-useGLTF.preload('/avatar/me.glb')

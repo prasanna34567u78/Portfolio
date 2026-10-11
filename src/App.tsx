@@ -11,8 +11,8 @@ import { useScrollReveal } from './hooks/useScrollReveal'
 
 function Footer() {
   return (
-    <footer className="border-t border-slate-800 py-8 text-center" role="contentinfo">
-      <p className="text-xs text-slate-500">
+    <footer className="border-t border-slate-200 dark:border-slate-800 py-8 text-center bg-white dark:bg-slate-950 transition-colors duration-200" role="contentinfo">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         © {new Date().getFullYear()} Prasanna Kumar · Built with React, Vite & Tailwind CSS
       </p>
     </footer>
@@ -22,17 +22,20 @@ function Footer() {
 export default function App() {
   const [darkMode, setDarkMode] = useState(true)
 
-  // Apply dark/light class to <body>
+  // Toggle dark class on <html> element
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode)
-    document.body.classList.toggle('light', !darkMode)
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
   }, [darkMode])
 
   // Initialise scroll-reveal after mount
   useScrollReveal()
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Nav darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} />
       <main id="main-content" tabIndex={-1}>
         <Hero />

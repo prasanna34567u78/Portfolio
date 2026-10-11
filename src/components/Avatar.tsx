@@ -1,27 +1,22 @@
 /**
- * Avatar.tsx — Talking 3D avatar component.
+ * Avatar.tsx — Talking avatar component.
  *
  * Architecture:
- * - Renders a Three.js scene via @react-three/fiber / @react-three/drei.
- * - Loads GLB from /avatar/me.glb (Draco-compatible loader).
- * - On speech: drives facial blendshapes (ARKit viseme keys) from
- *   SpeechSynthesis boundary events via VisemeDriver.
- * - Falls back to static photo + waveform ring if WebGL is unavailable
- *   or if /avatar/me.glb is not yet present.
- * - NEVER autoplays — user must press a button.
- * - Shows live captions at all times during speech.
- * - TTS layer is abstracted behind `speak()` / `stop()` so a
- *   better voice service can be plugged in without touching this component.
+ * - Lazy-loads 3D Avatar scene ONLY when a verified binary .glb exists with glTF magic header.
+ * - Wraps 3D scene in an ErrorBoundary to prevent any runtime/WebGL error from crashing the app.
+ * - Falls back smoothly to static photo (/avatar/me.jpg) with animated waveform speaking indicator.
+ * - NEVER autoplays — user must trigger via "Hear my intro" button.
+ * - Shows high-contrast live captions during speech in both dark and light modes.
+ * - SpeechSynthesis abstraction with browser TTS safety and swappable interface.
  */
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import clsx from 'clsx'
 import { INTRO_SCRIPT, QUICK_ANSWERS, type QA } from '../data/avatarScript'
 import AvatarChat from './AvatarChat'
+import ErrorBoundary from './ErrorBoundary'
 
 // ── TTS Adapter ─────────────────────────────────────────────────────────────
-// Swap this object to use ElevenLabs / Azure / Deepgram without changing Avatar.
-
 interface TTSAdapter {
   speak(
     text: string,
@@ -31,39 +26,70 @@ interface TTSAdapter {
   stop(): void
 }
 
+let activeUtterance: SpeechSynthesisUtterance | null = null
+
 const browserTTS: TTSAdapter = {
   speak(text, onBoundary, onEnd) {
-    if (!window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.rate = 0.95
-    utterance.pitch = 1.0
-    // Pick a natural-sounding voice if available
-    const voices = window.speechSynthesis.getVoices()
-    const preferred = voices.find(
-      (v) =>
-        v.lang.startsWith('en') &&
-        (v.name.toLowerCase().includes('natural') ||
-          v.name.toLowerCase().includes('neural') ||
-          v.name.toLowerCase().includes('google')),
-    )
-    if (preferred) utterance.voice = preferred
-
-    utterance.onboundary = (e) => {
-      if (e.name === 'word') onBoundary(e.charIndex, e.charLength)
+    if (!('speechSynthesis' in window)) {
+      onEnd()
+      return
     }
-    utterance.onend = onEnd
-    utterance.onerror = onEnd
-    window.speechSynthesis.speak(utterance)
+
+    try {
+      window.speechSynthesis.cancel()
+    } catch {}
+
+    // Delay prevents Chromium SpeechSynthesis cancellation collisions
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(text)
+      activeUtterance = utterance
+      utterance.rate = 0.98
+      utterance.pitch = 1.0
+
+      const voices = window.speechSynthesis.getVoices()
+      const preferred = voices.find(
+        (v) =>
+          v.lang.startsWith('en') &&
+          (v.name.toLowerCase().includes('natural') ||
+            v.name.toLowerCase().includes('neural') ||
+            v.name.toLowerCase().includes('google') ||
+            v.name.toLowerCase().includes('english')),
+      )
+      if (preferred) utterance.voice = preferred
+
+      utterance.onboundary = (e) => {
+        if (e.name === 'word') {
+          onBoundary(e.charIndex, e.charLength || 10)
+        }
+      }
+
+      utterance.onend = () => {
+        activeUtterance = null
+        onEnd()
+      }
+
+      utterance.onerror = (e) => {
+        if (e.error !== 'interrupted' && e.error !== 'canceled') {
+          console.warn('SpeechSynthesis error:', e.error)
+        }
+        activeUtterance = null
+        onEnd()
+      }
+
+      window.speechSynthesis.speak(utterance)
+    }, 60)
   },
   stop() {
-    window.speechSynthesis?.cancel()
+    if (activeUtterance) {
+      activeUtterance = null
+    }
+    try {
+      window.speechSynthesis?.cancel()
+    } catch {}
   },
 }
 
 // ── Viseme mapping ───────────────────────────────────────────────────────────
-// ARKit blendshape keys that Ready Player Me / Avaturn GLBs expose.
-// We approximate viseme from phoneme using a simple vowel/consonant heuristic.
 const VISEME_MAP: Record<string, string> = {
   a: 'viseme_aa',
   e: 'viseme_E',
@@ -111,112 +137,100 @@ function textToVisemes(text: string): Array<{ viseme: string; duration: number }
   })
 }
 
-// ── Capability detection ─────────────────────────────────────────────────────
-function detectWebGL(): boolean {
-  try {
-    const canvas = document.createElement('canvas')
-    return !!(canvas.getContext('webgl2') || canvas.getContext('webgl'))
-  } catch {
-    return false
-  }
-}
-
-function detectSpeechSynthesis(): boolean {
-  return 'speechSynthesis' in window
-}
-
-// ── Waveform ring (fallback visual) ──────────────────────────────────────────
-function WaveformRing({ active }: { active: boolean }) {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
-      <div className={clsx('flex items-end gap-[3px]', active ? 'opacity-100' : 'opacity-30')}>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className={clsx(
-              'w-1 bg-indigo-400 rounded-full transition-all',
-              active && 'animate-waveform',
-            )}
-            style={{
-              height: active ? undefined : '4px',
-              animationDelay: `${i * 80}ms`,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Static photo fallback ─────────────────────────────────────────────────────
+// ── Static photo fallback with speaking badge ────────────────────────────────
 function PhotoFallback({ speaking }: { speaking: boolean }) {
   return (
-    <div className="relative w-72 h-72 sm:w-80 sm:h-80">
-      {/* Ring */}
+    <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
+      {/* Speaking Pulse Glow */}
       <div
         className={clsx(
-          'absolute inset-0 rounded-full border-2 transition-colors duration-500',
-          speaking ? 'border-indigo-400 shadow-[0_0_24px_4px_rgba(99,102,241,0.4)]' : 'border-slate-700',
+          'absolute -inset-2 rounded-full transition-all duration-700 pointer-events-none',
+          speaking
+            ? 'opacity-100 bg-indigo-500/20 blur-md scale-105'
+            : 'opacity-0 scale-95',
         )}
       />
-      <img
-        src="/avatar/me.jpg"
-        alt="Prasanna Kumar"
-        className="w-full h-full rounded-full object-cover object-top"
-        loading="eager"
-      />
-      <WaveformRing active={speaking} />
-    </div>
-  )
-}
 
-// ── Placeholder (no photo yet) ─────────────────────────────────────────────────
-function AvatarPlaceholder({ speaking }: { speaking: boolean }) {
-  return (
-    <div className="relative w-72 h-72 sm:w-80 sm:h-80">
+      {/* Circle Photo Container */}
       <div
         className={clsx(
-          'w-full h-full rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-colors',
-          speaking ? 'border-indigo-400 bg-indigo-950/40' : 'border-slate-700 bg-slate-800/40',
+          'relative w-full h-full rounded-full overflow-hidden border-2 transition-all duration-500 shadow-xl',
+          speaking
+            ? 'border-indigo-500 ring-4 ring-indigo-500/20 dark:ring-indigo-400/30'
+            : 'border-slate-300 dark:border-slate-700',
         )}
       >
-        {/* Generic silhouette */}
-        <svg className="w-24 h-24 text-slate-600" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z" />
-        </svg>
-        <p className="text-xs text-slate-500 text-center px-4">
-          Add{' '}
-          <code className="font-mono text-indigo-400">public/avatar/me.glb</code>
-          {' '}or{' '}
-          <code className="font-mono text-indigo-400">public/avatar/me.jpg</code>
-        </p>
+        <img
+          src="/avatar/me.jpg"
+          alt="Prasanna Kumar"
+          className="w-full h-full object-cover object-top"
+          loading="eager"
+        />
       </div>
-      <WaveformRing active={speaking} />
+
+      {/* Speaking Waveform Badge */}
+      {speaking && (
+        <div className="absolute -bottom-2.5 bg-slate-900/95 dark:bg-slate-900/95 border border-indigo-500 px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <span
+              key={i}
+              className="w-1 bg-indigo-400 rounded-full animate-waveform"
+              style={{ animationDelay: `${i * 120}ms` }}
+            />
+          ))}
+          <span className="text-[10px] text-indigo-300 font-mono ml-1 font-semibold uppercase tracking-wider">
+            Speaking
+          </span>
+        </div>
+      )}
     </div>
   )
 }
 
-// ── 3D Avatar scene (only imported when WebGL is available) ───────────────────
-// Dynamically imported to keep bundle small
-let ThreeAvatarScene: React.ComponentType<{
-  speaking: boolean
-  currentViseme: string
-}> | null = null
+// ── Placeholder if photo is missing ─────────────────────────────────────────
+function AvatarPlaceholder({ speaking }: { speaking: boolean }) {
+  return (
+    <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
+      <div
+        className={clsx(
+          'w-full h-full rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-colors p-4',
+          speaking
+            ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950/40'
+            : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/40',
+        )}
+      >
+        <svg className="w-20 h-20 text-slate-400 dark:text-slate-600" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z" />
+        </svg>
+        <p className="text-xs text-slate-500 dark:text-slate-400 text-center leading-tight">
+          Add <code className="font-mono text-indigo-600 dark:text-indigo-400">me.glb</code> or <code className="font-mono text-indigo-600 dark:text-indigo-400">me.jpg</code>
+        </p>
+      </div>
+    </div>
+  )
+}
 
-// ── Captions ──────────────────────────────────────────────────────────────────
+// ── High-Contrast Live Captions ──────────────────────────────────────────────
 function Captions({ text, speaking }: { text: string; speaking: boolean }) {
   if (!text) return null
   return (
     <div
       role="status"
       aria-live="polite"
-      aria-atomic="false"
       className={clsx(
-        'mt-4 max-w-sm text-center text-sm leading-relaxed transition-opacity duration-300 min-h-[3rem]',
-        speaking ? 'text-slate-200 opacity-100' : 'text-slate-500 opacity-70',
+        'mt-4 max-w-md w-full px-4 py-3 rounded-xl border text-sm leading-relaxed transition-all duration-300 text-center shadow-lg backdrop-blur-sm',
+        speaking
+          ? 'bg-white/95 dark:bg-slate-900/95 border-indigo-400 dark:border-indigo-500/50 text-slate-800 dark:text-slate-100 shadow-indigo-500/10'
+          : 'bg-white/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400',
       )}
     >
-      {text}
+      <div className="flex items-center justify-center gap-1.5 mb-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+        Live Speech
+      </div>
+      <p className="italic font-normal text-slate-800 dark:text-slate-200">
+        "{text}"
+      </p>
     </div>
   )
 }
@@ -224,33 +238,49 @@ function Captions({ text, speaking }: { text: string; speaking: boolean }) {
 // ── Main Avatar Component ─────────────────────────────────────────────────────
 export default function Avatar() {
   const [hasSpeech, setHasSpeech] = useState(false)
-  const [hasWebGL, setHasWebGL] = useState(false)
   const [hasPhoto, setHasPhoto] = useState(false)
   const [hasGLB, setHasGLB] = useState(false)
+  const [SceneComponent, setSceneComponent] = useState<ComponentType<any> | null>(null)
   const [speaking, setSpeaking] = useState(false)
   const [muted, setMuted] = useState(false)
   const [captionText, setCaptionText] = useState('')
   const [currentViseme, setCurrentViseme] = useState('viseme_sil')
   const [activeScript, setActiveScript] = useState<string | null>(null)
+
   const ttsRef = useRef<TTSAdapter>(browserTTS)
   const visemeTimerRef = useRef<number | null>(null)
 
-  // Detect capabilities on mount
+  // Capability detection & probing
   useEffect(() => {
-    setHasSpeech(detectSpeechSynthesis())
-    setHasWebGL(detectWebGL())
+    setHasSpeech('speechSynthesis' in window)
 
-    // Probe for photo
+    // Probe photo
     const img = new Image()
     img.src = '/avatar/me.jpg'
     img.onload = () => setHasPhoto(true)
 
-    // Probe for GLB
-    fetch('/avatar/me.glb', { method: 'HEAD' })
-      .then((r) => { if (r.ok) setHasGLB(true) })
-      .catch(() => {})
+    // Probe GLB — verify binary magic number 0x46546C67 ('glTF')
+    // This prevents Netlify SPA HTML redirects from being parsed as 3D models
+    fetch('/avatar/me.glb', { method: 'GET', headers: { Range: 'bytes=0-15' } })
+      .then(async (r) => {
+        const contentType = r.headers.get('content-type') || ''
+        if (r.ok && !contentType.includes('text/html') && !contentType.includes('text/plain')) {
+          const buffer = await r.arrayBuffer()
+          const header = new Uint8Array(buffer.slice(0, 4))
+          const magic = String.fromCharCode(...header)
+          if (magic === 'glTF') {
+            setHasGLB(true)
+            // Dynamically import 3D scene only when verified
+            const mod = await import('./AvatarScene')
+            setSceneComponent(() => mod.default)
+            return
+          }
+        }
+        setHasGLB(false)
+      })
+      .catch(() => setHasGLB(false))
 
-    // Pre-load voices (Chrome needs this)
+    // Pre-load voices on Chrome
     if ('speechSynthesis' in window) {
       window.speechSynthesis.getVoices()
       window.speechSynthesis.addEventListener('voiceschanged', () => {
@@ -263,17 +293,6 @@ export default function Avatar() {
       if (visemeTimerRef.current) clearTimeout(visemeTimerRef.current)
     }
   }, [])
-
-  // Lazy-load the Three.js scene component only when GLB + WebGL are both available
-  useEffect(() => {
-    if (hasGLB && hasWebGL && !ThreeAvatarScene) {
-      import('./AvatarScene')
-        .then((m) => {
-          ThreeAvatarScene = m.default
-        })
-        .catch(() => {}) // silently fall back to photo
-    }
-  }, [hasGLB, hasWebGL])
 
   const driveVisemes = useCallback((text: string) => {
     const visemes = textToVisemes(text)
@@ -300,21 +319,22 @@ export default function Avatar() {
         setActiveScript(null)
         return
       }
+
+      setCaptionText(text)
+      setActiveScript(text)
+
       if (!hasSpeech || muted) {
-        // Text-only fallback
-        setCaptionText(text)
         return
       }
+
       setSpeaking(true)
-      setActiveScript(text)
-      setCaptionText(text)
       driveVisemes(text)
 
       ttsRef.current.speak(
         text,
-        (charIndex, charLength) => {
-          // Show the currently spoken phrase as caption
-          setCaptionText(text.slice(charIndex, charIndex + charLength * 8))
+        () => {
+          // Keep showing full text so visitor can read along comfortably
+          setCaptionText(text)
         },
         () => {
           setSpeaking(false)
@@ -335,25 +355,25 @@ export default function Avatar() {
     setActiveScript(null)
   }
 
-  // Decide which visual to render
-  const showThreeD = hasWebGL && hasGLB && ThreeAvatarScene
+  const showThreeD = hasGLB && SceneComponent !== null
   const showPhoto = !showThreeD && hasPhoto
-  // else: placeholder
 
   return (
-    <div className="flex flex-col items-center gap-4" role="region" aria-label="Interactive avatar">
-      {/* Visual */}
+    <div className="flex flex-col items-center gap-4 w-full" role="region" aria-label="Interactive avatar">
+      {/* Avatar Visual Display */}
       <div className="relative">
-        {showThreeD && ThreeAvatarScene ? (
-          <Suspense
-            fallback={
-              <div className="w-72 h-72 rounded-full bg-slate-800 animate-pulse flex items-center justify-center">
-                <span className="text-slate-500 text-sm">Loading 3D…</span>
-              </div>
-            }
-          >
-            <ThreeAvatarScene speaking={speaking} currentViseme={currentViseme} />
-          </Suspense>
+        {showThreeD && SceneComponent ? (
+          <ErrorBoundary fallback={<PhotoFallback speaking={speaking} />}>
+            <Suspense
+              fallback={
+                <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse flex items-center justify-center">
+                  <span className="text-slate-500 text-sm">Loading 3D…</span>
+                </div>
+              }
+            >
+              <SceneComponent speaking={speaking} currentViseme={currentViseme} />
+            </Suspense>
+          </ErrorBoundary>
         ) : showPhoto ? (
           <PhotoFallback speaking={speaking} />
         ) : (
@@ -361,12 +381,12 @@ export default function Avatar() {
         )}
       </div>
 
-      {/* Primary CTA */}
+      {/* Primary Action Button */}
       {!speaking && (
         <button
           onClick={() => speak(INTRO_SCRIPT)}
           className="btn-primary"
-          aria-label="Play introduction"
+          aria-label="Play spoken introduction"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7L8 5z" />
@@ -375,7 +395,7 @@ export default function Avatar() {
         </button>
       )}
 
-      {/* Stop / mute controls */}
+      {/* Stop & Mute Controls */}
       {speaking && (
         <div className="flex items-center gap-2">
           <button
@@ -383,7 +403,7 @@ export default function Avatar() {
             className="btn-ghost text-sm py-1.5 px-3"
             aria-label="Stop speaking"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
               <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
             Stop
@@ -411,10 +431,10 @@ export default function Avatar() {
         </div>
       )}
 
-      {/* Live captions */}
+      {/* Synchronized Captions */}
       <Captions text={captionText} speaking={speaking} />
 
-      {/* Quick-question chips */}
+      {/* Quick-Question Chips */}
       {!speaking && (
         <div className="flex flex-wrap justify-center gap-2 max-w-sm mt-1" role="group" aria-label="Quick questions">
           {QUICK_ANSWERS.map((qa: QA) => (
@@ -422,10 +442,10 @@ export default function Avatar() {
               key={qa.question}
               onClick={() => speak(qa.answer)}
               className={clsx(
-                'text-xs px-3 py-1.5 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
+                'text-xs px-3 py-1.5 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 font-medium',
                 activeScript === qa.answer
-                  ? 'border-indigo-400 bg-indigo-500/20 text-indigo-300'
-                  : 'border-slate-700 text-slate-400 hover:border-indigo-500 hover:text-indigo-400',
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 bg-white/60 dark:bg-slate-900/40',
               )}
               aria-pressed={activeScript === qa.answer}
             >
@@ -438,10 +458,10 @@ export default function Avatar() {
       {/* Optional Chat UI (Phase 4, feature-flagged) */}
       <AvatarChat />
 
-      {/* Text-only fallback notice */}
+      {/* Fallback notice if speech is unsupported */}
       {!hasSpeech && (
         <p className="text-xs text-slate-500 text-center max-w-xs" role="note">
-          Speech synthesis is not available in this browser. Captions will display as text.
+          Speech synthesis is not supported in this browser. Captions will display as text.
         </p>
       )}
     </div>

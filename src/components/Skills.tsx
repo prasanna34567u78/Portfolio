@@ -57,8 +57,8 @@ export default function Skills() {
             >
               {/* Group header */}
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-indigo-400">{GROUP_ICONS[group.label]}</span>
-                <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wide">
+                <span className="text-indigo-600 dark:text-indigo-400">{GROUP_ICONS[group.label]}</span>
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
                   {group.label}
                 </h3>
               </div>
@@ -69,7 +69,7 @@ export default function Skills() {
                   <span
                     key={skill}
                     role="listitem"
-                    className="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:border-indigo-500/50 hover:text-indigo-300 transition-colors font-mono"
+                    className="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors font-mono"
                   >
                     {skill}
                   </span>

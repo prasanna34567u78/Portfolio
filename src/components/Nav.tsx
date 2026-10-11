@@ -43,7 +43,7 @@ export default function Nav({ darkMode, onToggleDark }: NavProps) {
       className={clsx(
         'fixed top-0 inset-x-0 z-50 transition-all duration-300',
         scrolled
-          ? 'bg-slate-950/90 dark:bg-slate-950/90 light:bg-white/90 backdrop-blur-md shadow-md shadow-black/20'
+          ? 'bg-white/90 dark:bg-slate-950/90 border-b border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md shadow-sm dark:shadow-md dark:shadow-black/20'
           : 'bg-transparent',
       )}
     >
@@ -54,10 +54,10 @@ export default function Nav({ darkMode, onToggleDark }: NavProps) {
         {/* Logo */}
         <a
           href="#hero"
-          className="text-lg font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+          className="text-lg font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
           aria-label="Back to top"
         >
-          {SITE.name.split(' ')[0]}<span className="text-white">.</span>
+          {SITE.name.split(' ')[0]}<span className="text-slate-900 dark:text-white">.</span>
         </a>
 
         {/* Desktop links */}
@@ -72,8 +72,8 @@ export default function Nav({ darkMode, onToggleDark }: NavProps) {
                   className={clsx(
                     'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200',
                     isActive
-                      ? 'text-indigo-400 bg-indigo-500/10'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60',
+                      ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 font-semibold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60',
                   )}
                   aria-current={isActive ? 'page' : undefined}
                 >
@@ -89,18 +89,19 @@ export default function Nav({ darkMode, onToggleDark }: NavProps) {
           {/* Dark/Light toggle */}
           <button
             onClick={onToggleDark}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
             aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {darkMode ? (
               /* Sun icon */
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="5" />
                 <path strokeLinecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
               </svg>
             ) : (
               /* Moon icon */
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
               </svg>
             )}
@@ -121,7 +122,7 @@ export default function Nav({ darkMode, onToggleDark }: NavProps) {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            className="md:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
             aria-label="Toggle navigation menu"
@@ -141,7 +142,7 @@ export default function Nav({ darkMode, onToggleDark }: NavProps) {
       {menuOpen && (
         <div
           id="mobile-menu"
-          className="md:hidden bg-slate-900 border-t border-slate-800 px-4 pb-4 pt-2"
+          className="md:hidden bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-4 pb-4 pt-2 shadow-lg"
           role="menu"
         >
           <ul className="flex flex-col gap-1" role="list">
@@ -151,13 +152,13 @@ export default function Nav({ darkMode, onToggleDark }: NavProps) {
                   href={href}
                   role="menuitem"
                   onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                  className="block px-3 py-2 rounded-md text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   {label}
                 </a>
               </li>
             ))}
-            <li role="none" className="mt-2 pt-2 border-t border-slate-800">
+            <li role="none" className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
               <a href="/resume.pdf" download className="btn-primary text-sm w-full justify-center">
                 Download Resume
               </a>

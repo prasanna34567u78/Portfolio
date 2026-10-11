@@ -2,7 +2,7 @@ import { SUMMARY } from '../data/content'
 
 export default function About() {
   return (
-    <section id="about" className="py-24 bg-slate-900/50" aria-labelledby="about-heading">
+    <section id="about" className="py-24 bg-slate-100/70 dark:bg-slate-900/40 transition-colors duration-200" aria-labelledby="about-heading">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="reveal max-w-2xl">
           <p className="section-label">Who I am</p>
@@ -12,14 +12,14 @@ export default function About() {
         <div className="grid lg:grid-cols-5 gap-12 mt-10">
           {/* Summary */}
           <div className="lg:col-span-3 reveal">
-            <p className="text-lg text-slate-300 leading-relaxed mb-6">
+            <p className="text-lg text-slate-700 dark:text-slate-300 leading-relaxed mb-6 font-normal">
               {SUMMARY}
             </p>
-            <p className="text-slate-400 leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
               I care about systems that are observable, fault-tolerant, and easy for the
               next engineer to reason about. Outside of distributed systems I enjoy
               competitive programming — including finishing{' '}
-              <strong className="text-slate-200">All India Rank 2</strong> at IIT Dharwad's
+              <strong className="text-slate-900 dark:text-slate-200 font-semibold">All India Rank 2</strong> at IIT Dharwad's
               Algostrike contest — and working through problems on LeetCode.
             </p>
           </div>
@@ -36,8 +36,8 @@ export default function About() {
                 key={label}
                 className="card flex flex-col gap-1 hover:border-indigo-500/50 transition-colors"
               >
-                <span className="text-3xl font-bold text-indigo-400">{value}</span>
-                <span className="text-xs text-slate-400 leading-tight">{label}</span>
+                <span className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{value}</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">{label}</span>
               </div>
             ))}
           </div>
