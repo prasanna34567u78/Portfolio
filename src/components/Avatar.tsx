@@ -28,6 +28,81 @@ interface TTSAdapter {
 
 let activeUtterance: SpeechSynthesisUtterance | null = null
 
+const MALE_NAMES = [
+  'guy',
+  'david',
+  'mark',
+  'george',
+  'james',
+  'daniel',
+  'alex',
+  'fred',
+  'oliver',
+  'aaron',
+  'prabhat',
+  'ravi',
+  'rishi',
+  'male',
+  'christopher',
+  'eric',
+  'steffan',
+  'ryan',
+]
+
+const FEMALE_NAMES = [
+  'zira',
+  'jenny',
+  'aria',
+  'samantha',
+  'victoria',
+  'karen',
+  'susan',
+  'cathy',
+  'hazel',
+  'heera',
+  'neerja',
+  'eva',
+  'female',
+  'stephanie',
+  'sarah',
+  'sonia',
+  'amber',
+  'libby',
+  'clara',
+  'michelle',
+  'ana',
+]
+
+function getBestMaleVoice(): SpeechSynthesisVoice | null {
+  if (!('speechSynthesis' in window)) return null
+  const voices = window.speechSynthesis.getVoices()
+  const enVoices = voices.filter((v) => v.lang.startsWith('en'))
+
+  // 1. Explicit male name match that is NOT female
+  const explicitMale = enVoices.find((v) => {
+    const name = v.name.toLowerCase()
+    return (
+      MALE_NAMES.some((m) => name.includes(m)) &&
+      !FEMALE_NAMES.some((f) => name.includes(f))
+    )
+  })
+  if (explicitMale) return explicitMale
+
+  // 2. Any voice containing "male" in its name
+  const anyMale = voices.find((v) => v.name.toLowerCase().includes('male'))
+  if (anyMale) return anyMale
+
+  // 3. English voice not matching known female names
+  const notFemale = enVoices.find((v) => {
+    const name = v.name.toLowerCase()
+    return !FEMALE_NAMES.some((f) => name.includes(f))
+  })
+  if (notFemale) return notFemale
+
+  // 4. Fallback to first available English voice
+  return enVoices[0] || null
+}
+
 const browserTTS: TTSAdapter = {
   speak(text, onBoundary, onEnd) {
     if (!('speechSynthesis' in window)) {
@@ -44,18 +119,12 @@ const browserTTS: TTSAdapter = {
       const utterance = new SpeechSynthesisUtterance(text)
       activeUtterance = utterance
       utterance.rate = 0.98
-      utterance.pitch = 1.0
+      utterance.pitch = 0.90 // Deeper masculine tone
 
-      const voices = window.speechSynthesis.getVoices()
-      const preferred = voices.find(
-        (v) =>
-          v.lang.startsWith('en') &&
-          (v.name.toLowerCase().includes('natural') ||
-            v.name.toLowerCase().includes('neural') ||
-            v.name.toLowerCase().includes('google') ||
-            v.name.toLowerCase().includes('english')),
-      )
-      if (preferred) utterance.voice = preferred
+      const maleVoice = getBestMaleVoice()
+      if (maleVoice) {
+        utterance.voice = maleVoice
+      }
 
       utterance.onboundary = (e) => {
         if (e.name === 'word') {
